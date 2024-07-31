@@ -57,7 +57,7 @@ typedef struct Draw_Frame {
 	bool enable_z_sorting;
 	s32 z_stack[Z_STACK_MAX];
 	u64 z_count;
-
+  
 	Vector4 scissor_stack[SCISSOR_STACK_MAX];
 	u64 scissor_count;
 	
@@ -118,11 +118,11 @@ Draw_Quad *draw_quad_projected(Draw_Quad quad, Matrix4 world_to_clip) {
 	quad.bottom_right = m4_transform(world_to_clip, v4(v2_expand(quad.bottom_right), 0, 1)).xy;
 	
 	bool should_cull = 
-	    (quad.bottom_left.x < -1 && quad.top_left.x < -1 && quad.top_right.x < -1 && quad.bottom_right.x < -1) ||
-	    (quad.bottom_left.x > 1 && quad.top_left.x > 1 && quad.top_right.x > 1 && quad.bottom_right.x > 1) ||
-	    (quad.bottom_left.y < -1 && quad.top_left.y < -1 && quad.top_right.y < -1 && quad.bottom_right.y < -1) ||
-	    (quad.bottom_left.y > 1 && quad.top_left.y > 1 && quad.top_right.y > 1 && quad.bottom_right.y > 1);
-
+  (quad.bottom_left.x < -1 && quad.top_left.x < -1 && quad.top_right.x < -1 && quad.bottom_right.x < -1) ||
+  (quad.bottom_left.x > 1 && quad.top_left.x > 1 && quad.top_right.x > 1 && quad.bottom_right.x > 1) ||
+  (quad.bottom_left.y < -1 && quad.top_left.y < -1 && quad.top_right.y < -1 && quad.bottom_right.y < -1) ||
+  (quad.bottom_left.y > 1 && quad.top_left.y > 1 && quad.top_right.y > 1 && quad.bottom_right.y > 1);
+  
 	if (should_cull) {
 		return &_nil_quad;
 	}
@@ -263,9 +263,9 @@ typedef struct {
 	Vector4 color;
 } Draw_Text_Callback_Params;
 bool draw_text_callback(Gfx_Glyph glyph, Gfx_Font_Atlas *atlas, float glyph_x, float glyph_y, void *ud) {
-
+  
 	u32 codepoint = glyph.codepoint;
-
+  
 	Draw_Text_Callback_Params *params = (Draw_Text_Callback_Params*)ud;
 	
 	Vector2 size = v2(glyph.width*params->scale.x, glyph.height*params->scale.y);

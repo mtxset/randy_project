@@ -47,11 +47,11 @@ talloc_string(u64 count) {
 
 string 
 string_concat(const string left, const string right, Allocator allocator) {
-
+  
 	if (right.count + left.count == 0) return null_string;
 	if (left.count == 0) return right;
 	if (right.count == 0) return left;
-
+  
 	string result;
 	result.count = left.count + right.count;
 	result.data = cast(u8*)alloc(allocator, result.count);
@@ -78,7 +78,7 @@ strings_match(string a, string b) {
 	
 	// Count match, pointer match: they are the same
 	if (a.data == b.data) return true;
-
+  
 	return memcmp(a.data, b.data, a.count) == 0;
 }
 
@@ -188,9 +188,9 @@ string_builder_get_string(String_Builder b) {
 
 string 
 string_replace_all(string s, string old, string new, Allocator allocator) {
-
+  
 	if (!s.data || !s.count) return string_copy(null_string, allocator);
-
+  
 	String_Builder builder;
 	string_builder_init_reserve(&builder, s.count, allocator);
 	
@@ -208,4 +208,4 @@ string_replace_all(string s, string old, string new, Allocator allocator) {
 	
 	return string_builder_get_string(builder);
 }
-	
+
