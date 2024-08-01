@@ -35,6 +35,17 @@ enum Entity_type {
   Entity_type_item_end,
 };
 
+enum Sound_effect {
+  Sound_effect_pickaxe_hit
+};
+
+typedef struct Particle {
+  vec2 pos, velocity;
+  vec4 color;
+  
+  f32 life_left;
+} Particle;
+
 typedef struct Entity {
   vec2 pos;
   vec2 velocity;
@@ -55,7 +66,12 @@ typedef struct Entity {
   
   bool is_valid;
   
-  //vec4 color;
+  bool shaking;
+  f32 shake_timer;
+  vec2 shake_offset;
+  vec2 shake_before_pos;
+  
+  vec4 color;
 } Entity;
 
 typedef struct Game_state {
@@ -73,13 +89,16 @@ typedef struct Game_state {
   
   struct {
     Entity *entity;
+    Entity *hit_entity;
     bool swinging;
-    bool paused;
-    f32 progress;
     
-    f32 swing_speed;
-    f32 pause_timer;
+    bool left;
     
+    bool hit;
+    
+    bool first_hit;
+    
+    f32 step;
   } pickaxe;
   
   struct {
@@ -90,6 +109,8 @@ typedef struct Game_state {
   
   bool show_debug_lines;
   
+  u32      particle_count;
+  Particle *particle_list;
   
   bool is_initialized;
 } Game_state;

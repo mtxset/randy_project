@@ -57,7 +57,7 @@ void load_game_dll(char **argv) {
   log("Loaded game procedures");
 }
 
-static FILETIME dll_last_write_time = {};
+
 
 int entry(int argc, char **argv) {
 	
@@ -84,16 +84,22 @@ int entry(int argc, char **argv) {
   const float64 fps_limit = 60;
 	const float64 min_frametime = 1.0 / fps_limit;
   
+  FILETIME dll_last_write_time = {};
+  
   while (!window.should_close) {
 		
 		float64 now = os_get_current_time_in_seconds();
 		float64 delta = now - last_time;
 		if (delta < min_frametime) {
-			os_high_precision_sleep((min_frametime-delta)*1000.0);
+			os_high_precision_sleep((min_frametime - delta) * 1000.0);
 			now = os_get_current_time_in_seconds();
 			delta = now - last_time;
 		}
-    if ((int)now != (int)last_time) log("%.2f FPS\n%.2fms", 1.0/(delta), (delta)*1000);
+#if 0
+    if ((int)now != (int)last_time) 
+      log("%.2f FPS\n%.2fms", 1.0/(delta), (delta) * 1000);
+#endif
+    
 		last_time = now;
 		tm_scope("os_update") {
 			os_update(); 
