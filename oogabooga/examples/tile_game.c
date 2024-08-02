@@ -57,7 +57,7 @@ int entry(int argc, char **argv) {
 	window.clear_color = hex_to_rgba(0x6495EDff);
 	
 	camera_view = m4_scalar(1.0);
-
+  
 	float64 last_time = os_get_current_time_in_seconds();
 	while (!window.should_close) {
 		reset_temporary_storage();
@@ -78,7 +78,7 @@ int entry(int argc, char **argv) {
 		os_update(); 
 		gfx_update();
 	}
-
+  
 	return 0;
 }
 
@@ -87,11 +87,11 @@ Vector2 screen_to_world(Vector2 screen) {
 	Matrix4 view = draw_frame.view;
 	float window_w = window.width;
 	float window_h = window.height;
-
+  
 	// Normalize the mouse coordinates
 	float ndc_x = (screen.x / (window_w * 0.5f)) - 1.0f;
 	float ndc_y = (screen.y / (window_h * 0.5f)) - 1.0f;
-
+  
 	// Transform to world coordinates
 	Vector4 world_pos = v4(ndc_x, ndc_y, 0, 1);
 	world_pos = m4_transform(m4_inverse(proj), world_pos);

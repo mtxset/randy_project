@@ -68,7 +68,7 @@ int entry(int argc, char **argv) {
 	window.scaled_height = 720; 
 	window.x = 200;
 	window.y = 90;
-	window.clear_color = hex_to_rgba(0x6495EDff);
+	window.clear_color = hex_to_rgba(0x193650ff);
   
   string exe_path = STR(argv[0]);
   string exe_dir = get_directory_of(exe_path);

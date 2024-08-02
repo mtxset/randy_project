@@ -33,6 +33,8 @@ enum Entity_type {
   Entity_type_item_rock,
   Entity_type_item_wood,
   Entity_type_item_end,
+  
+  Entity_type_building_luberjack_hut
 };
 
 enum Sound_effect {
@@ -74,6 +76,12 @@ typedef struct Entity {
   vec4 color;
 } Entity;
 
+typedef struct Camera {
+  vec2 pos;
+  f32 angle;
+  f32 zoom;
+} Camera;
+
 typedef struct Game_state {
   Memory_arena arena;
   f32 time;
@@ -86,6 +94,9 @@ typedef struct Game_state {
   u32 entity_count;
   
   Entity *player_entity;
+  
+  Camera camera;
+  Camera ui_camera;
   
   struct {
     Entity *entity;
@@ -107,12 +118,29 @@ typedef struct Game_state {
     bool pressed;
   } on_entity;
   
+  struct {
+    bool show;
+    
+    vec2 pos;
+    bool overlaps;
+    
+    bool pressed;
+  } grid;
+  
+  struct {
+    bool show;
+    enum Entity_type selected_type;
+    
+  } ui_building;
+  
   bool show_debug_lines;
   
   u32      particle_count;
   Particle *particle_list;
   
   bool is_initialized;
+  
+  u64 _padding;
 } Game_state;
 
 #define PI 3.14159265359f
