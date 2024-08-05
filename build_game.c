@@ -597,7 +597,7 @@ vec2
 calc_mouse_ndc() {
   f32 aspect = (f32)window.width/(f32)window.height;
   f32 mx = (input_frame.mouse_x / (f32)window.width  * 2.0 - 1.0)*aspect;
-  f32 my = input_frame.mouse_y /  (f32)window.height * 2.0 - 1.0;
+  f32 my = input_frame.mouse_y  / (f32)window.height * 2.0 - 1.0;
   
   return v2(mx, my);
 }

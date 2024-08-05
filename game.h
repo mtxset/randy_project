@@ -140,7 +140,7 @@ typedef struct Game_state {
   
   bool is_initialized;
   
-  u64 _padding;
+  //u64 _padding;
 } Game_state;
 
 #define PI 3.14159265359f
