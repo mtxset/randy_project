@@ -4,6 +4,9 @@
 #define GAME_H
 
 
+#define PI 3.14159265359f
+#define TAU (2.0f * PI32)
+
 #define vec2 Vector2
 #define vec3 Vector3
 #define vec4 Vector4
@@ -13,6 +16,7 @@ const vec3 v3_z = {0, 0, 1};
 
 #include "memory.h"
 #include "color.h"
+#include "easing.h"
 
 typedef union Rect2 {
   struct {
@@ -34,7 +38,9 @@ enum Entity_type {
   Entity_type_item_wood,
   Entity_type_item_end,
   
-  Entity_type_building_luberjack_hut
+  Entity_type_building_luberjack_hut,
+  Entity_type_building_luberjack_hut_2x,
+  Entity_type_building_luberjack_hut_4x
 };
 
 enum Sound_effect {
@@ -74,6 +80,12 @@ typedef struct Entity {
   vec2 shake_before_pos;
   
   vec4 color;
+  
+  f32 initial_scale;
+  f32 start_y;
+  f32 end_y;
+  f32 landing_progress;
+  bool animate_landing;
 } Entity;
 
 typedef struct Camera {
@@ -82,8 +94,13 @@ typedef struct Camera {
   f32 zoom;
 } Camera;
 
+typedef struct Cell {
+  u32 x, y;
+} Cell;
+
 typedef struct Game_state {
   Memory_arena arena;
+  Memory_arena grid_arena;
   f32 time;
   f32 periodic_time;
   
@@ -95,12 +112,20 @@ typedef struct Game_state {
   
   Entity *player_entity;
   
+  Cell   *filled_cell_list;
+  u32    filled_count;
+  
+  Entity **grid_list;
+  
   Camera camera;
   Camera ui_camera;
   
   struct {
     Entity *entity;
     Entity *hit_entity;
+    
+    f32 hit_speed;
+    
     bool swinging;
     
     bool left;
@@ -142,8 +167,5 @@ typedef struct Game_state {
   
   //u64 _padding;
 } Game_state;
-
-#define PI 3.14159265359f
-#define TAU (2.0f * PI32)
 
 #endif //GAME_H

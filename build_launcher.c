@@ -16,7 +16,9 @@ int main(int argc, char **argv) {
     
     Allocator a = get_initialization_allocator();
     string dll_path = string_concat(exe_dir, STR("/engine.dll"), a);
-    
+
+    init_temp();
+
     Dynamic_Library_Handle dll = os_load_dynamic_library(dll_path);
     if (!dll) {
         os_write_string_to_stdout(STR("Failed loading engine dll from "));

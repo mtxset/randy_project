@@ -6,12 +6,15 @@
 
 typedef int32_t i32;
 
-#define UI_BUILDINGS 1
+#define GRID_WIDTH 100
+#define GRID_HEIGHT 100
 
 const vec4 no_color_override = {0,0,0,0};
 const i32 tile_width = 8;
 
 #define array_count(array) (sizeof(array) / sizeof((array)[0]))
+
+Game_state *GAME_STATE = 0;;
 
 inline
 bool 
@@ -73,8 +76,6 @@ apply_camera(m4 matrix, Camera *camera) {
   vec2 ndc_cam = ndc_coords(camera->pos);
   
   camera_matrix = m4_translate(camera_matrix, v3(-ndc_cam.x, -ndc_cam.y, 0));
-  
-  
   camera_matrix = m4_rotate(camera_matrix, v3_z, -camera->angle);
   camera_matrix = m4_scale(camera_matrix, v3(camera->zoom, camera->zoom, 1.0f));
   
@@ -107,31 +108,6 @@ ndc_to_world(vec2 ndc_coords, m4 inverse_camera_matrix) {
   vec4 world_pos = m4_transform(inverse_camera_matrix, ndc_pos);
   
   return v2(world_pos.x, world_pos.y);
-}
-
-static
-f32
-ease_out_bounce(f32 progress) {
-  f32 n1 = 7.5625f;
-  f32 d1 = 2.75f;
-  
-  f32 x = progress;
-  
-  if (x < 1.0f / d1) {
-    return n1 * x * x;
-  } 
-  else if (x < 2.0f / d1) {
-    x -= 1.5f / d1;
-    return n1 * x * x + 0.75f;
-  } 
-  else if (x < 2.5f / d1) {
-    x -= 2.25f / d1;
-    return n1 * x * x + 0.9375f;
-  } 
-  else {
-    x -= 2.625f / d1;
-    return n1 * x * x + 0.984375f;
-  }
 }
 
 inline
@@ -354,9 +330,20 @@ setup_entity(Entity *entity, enum Entity_type type) {
     case Entity_type_null: {
     } break;
     
+    
+    case Entity_type_building_luberjack_hut_4x: {
+      entity->atlas.current_offset = v2(0,223);
+      entity->atlas.size           = v2(32,32);
+    } break;
+    
+    case Entity_type_building_luberjack_hut_2x: {
+      entity->atlas.current_offset = v2(0,175);
+      entity->atlas.size           = v2(32,16);
+    } break;
+    
     case Entity_type_building_luberjack_hut: {
-      entity->atlas.current_offset = v2(48,223);
-      entity->atlas.size           = v2(80,48);
+      entity->atlas.current_offset = v2(0,175);
+      entity->atlas.size           = v2(16,16);
     } break;
     
     case Entity_type_pickaxe: {
@@ -531,7 +518,6 @@ info(Gfx_Font *font, vec2 pos, char *text, ...) {
   draw_text(font, STR(buffer), 64, ndc_pos, v2(0.001, 0.001), COLOR_BLACK);
 }
 
-
 static
 void
 render_text(Gfx_Font *font, char *text, vec2 pos) {
@@ -613,6 +599,242 @@ calc_mouse_world_pos(Camera *camera) {
   return mouse_world;
 }
 
+static
+void
+grid_add_to(Game_state *game_state, u32 x, u32 y, Entity *entity) {
+  
+  u32 index = y * GRID_WIDTH + x;
+  
+  Entity **entity_ref = game_state->grid_list + index;
+  
+  *entity_ref = entity;
+  
+  Cell *filled_cell = game_state->filled_cell_list + game_state->filled_count++;
+  
+  filled_cell->x = x;
+  filled_cell->y = y;
+}
+
+static
+Entity*
+grid_cell_entity(Game_state *game_state, u32 x, u32 y) {
+  
+  u32 index = y * GRID_WIDTH + x;
+  
+  Entity *entity_ref = *(game_state->grid_list + index);
+  
+  return entity_ref;
+}
+
+static
+bool
+grid_valid_coord(u32 x, u32 y) {
+  bool result = (x < GRID_WIDTH && y < GRID_HEIGHT);
+  
+  return result;
+}
+
+static
+void
+grid_reset_cell(Game_state *game_state, u32 x, u32 y) {
+  
+  u32 index = y * GRID_WIDTH + x;
+  Entity **entity_ref = game_state->grid_list + index;
+  
+  *entity_ref = 0;
+}
+
+static
+bool
+grid_cell_empty(Game_state *game_state, u32 x, u32 y) {
+  
+  Entity *entity_ref = grid_cell_entity(game_state, x, y);
+  
+  bool result = (entity_ref) ? false : true;
+  
+  return result;
+}
+
+static
+bool
+check_found_cell(Game_state *game_state, Entity **center_entity_ref, Entity **offset_entity_ref, Cell *center_cell, u32 *found_x, u32 *found_y, bool vertical) {
+  
+  *center_entity_ref = grid_cell_entity(game_state, center_cell->x, center_cell->y);
+  *offset_entity_ref = grid_cell_entity(game_state, *found_x, *found_y);
+  
+  Entity *center_entity = *center_entity_ref;
+  Entity *offset_entity = *offset_entity_ref;
+  
+  if (center_entity && offset_entity &&
+      center_entity->is_valid && offset_entity->is_valid &&
+      center_entity->type == offset_entity->type) {
+    
+    if (center_entity->type == Entity_type_building_luberjack_hut) {
+      // only horizontal
+      if (vertical)
+        return false;
+      else
+        return true;
+    }
+    
+    if (center_entity->type == Entity_type_building_luberjack_hut_2x) {
+      // only vertical
+      if (vertical)
+        return true;
+      else
+        return false;
+    }
+    
+  }
+  
+  return false;
+}
+
+
+static
+void
+animate_landing(Gfx_Font *font, Entity *entity, f32 delta_time) {
+  
+  f32 total_dist = fabsf(entity->end_y - entity->start_y);
+  
+  f32 a = entity->landing_progress;
+  a += delta_time;
+  
+  f32 seconds_to_land = 2.0f;
+  
+  f32 progress = a / seconds_to_land;
+  f32 t = ease_in_out_expo(progress);
+  
+  entity->pos.y = entity->start_y - total_dist * t;
+  
+  if (a >= seconds_to_land) {
+    entity->animate_landing = false;
+  }
+  
+  f32 end_angle   = 0;
+  f32 start_angle = PI;
+  
+  f32 start_scale = entity->initial_scale * 10.0f;
+  f32 end_scale = entity->initial_scale;
+  
+  entity->angle = lerpf(start_angle, end_angle, t);
+  entity->scale = lerpf(start_scale, end_scale, t);
+  
+  entity->landing_progress = a;
+}
+
+static
+void
+start_landing_animation(Entity *entity, vec2 desired_pos) {
+  
+  entity->initial_scale = entity->scale;
+  entity->start_y = desired_pos.y + 700.0f;
+  entity->end_y = desired_pos.y;
+  
+  entity->pos.x = desired_pos.x;
+  entity->pos.y = entity->start_y; 
+  entity->animate_landing = true;
+}
+
+static
+void
+building_try_combining(Game_state *game_state) { // busted
+  bool found = false;
+  bool vertical = false;
+  u32 found_x = 0;
+  u32 found_y = 0;
+  Cell *center_cell = 0;
+  
+  Entity *center_entity = 0;
+  Entity *offset_entity = 0;
+  
+  for (u32 cell_index = 0; cell_index < game_state->filled_count; cell_index++) {
+    Cell *cell = game_state->filled_cell_list + cell_index;
+    
+    found = false;
+    center_cell = cell;
+#if 0
+    // top
+    if (grid_valid_coord(cell->x, cell->y + 1) &&
+        !grid_cell_empty(game_state, cell->x, cell->y + 1)) {
+      found_x = cell->x; 
+      found_y = cell->y + 1;
+      vertical = true;
+      
+      found = check_found_cell(game_state, &center_entity, &offset_entity, center_cell, &found_x, &found_y, vertical);
+      
+      if (found) break;
+    }
+    
+    // down
+    if (grid_valid_coord(cell->x, cell->y - 1) &&
+        !grid_cell_empty(game_state, cell->x, cell->y - 1)) {
+      found_x = cell->x; 
+      found_y = cell->y - 1;
+      vertical = true;
+      
+      found = check_found_cell(game_state, &center_entity, &offset_entity, center_cell, &found_x, &found_y, vertical);
+      
+      if (found) break;
+    }
+#endif
+    // right
+    if (grid_valid_coord(cell->x + 1, cell->y) &&
+        !grid_cell_empty(game_state, cell->x + 1, cell->y)) {
+      found_x = cell->x + 1; 
+      found_y = cell->y;
+      found = true;
+      
+      found = check_found_cell(game_state, &center_entity, &offset_entity, center_cell, &found_x, &found_y, vertical);
+      
+      if (found) break;
+    }
+    
+    // left
+    if (grid_valid_coord(cell->x - 1, cell->y) &&
+        !grid_cell_empty(game_state, cell->x - 1, cell->y)) {
+      found_x = cell->x - 1; 
+      found_y = cell->y;
+      found = true;
+      
+      found = check_found_cell(game_state, &center_entity, &offset_entity, center_cell, &found_x, &found_y, vertical);
+      
+      if (found) break;
+    }
+  }
+  
+  if (found) {
+    assert(center_entity);
+    assert(offset_entity);
+    
+    Entity *building = entity_create(game_state);
+    enum Entity_type type = 0;
+    
+    if (center_entity->type == Entity_type_building_luberjack_hut) {
+      type = Entity_type_building_luberjack_hut_2x;
+    }
+    
+    setup_entity(building, type);
+    
+    
+    vec2 desired_pos = v2((center_entity->pos.x + offset_entity->pos.x) / 2,
+                          (center_entity->end_y + offset_entity->end_y) / 2);
+    
+    start_landing_animation(building, desired_pos);
+    
+    grid_reset_cell(game_state, center_cell->x, center_cell->y);
+    grid_reset_cell(game_state, found_x, found_y);
+    
+    grid_add_to(game_state, found_x, found_y, building);
+    grid_add_to(game_state, center_cell->x, center_cell->y, building);
+    
+    entity_destroy(center_entity);
+    entity_destroy(offset_entity);
+    
+    building_try_combining(game_state);
+  }
+}
+
 void SHARED_EXPORT
 game_update(f64 delta_time_f64, void *memory, size_t size) {
   
@@ -625,11 +847,21 @@ game_update(f64 delta_time_f64, void *memory, size_t size) {
   
   window.clear_color = hex_to_rgba(0x193650ff);
   
+  GAME_STATE = game_state;
+  
   if (!game_state->is_initialized) {
     
     initialize_arena(&game_state->arena,
                      size - sizeof(Game_state),
                      (u8*)memory + sizeof(Game_state));
+    
+    u32 grid_size = GRID_WIDTH * GRID_HEIGHT;
+    
+    sub_arena(&game_state->grid_arena, &game_state->arena,
+              sizeof(Entity*) * grid_size);
+    game_state->grid_list = mem_push_array(&game_state->grid_arena, Entity*, grid_size);
+    
+    game_state->filled_cell_list = mem_push_array(&game_state->arena, Cell, grid_size);
     
     Allocator heap = get_heap_allocator();
     
@@ -649,6 +881,7 @@ game_update(f64 delta_time_f64, void *memory, size_t size) {
     
     game_state->pickaxe.entity = entity_create(game_state);
     setup_entity(game_state->pickaxe.entity, Entity_type_pickaxe);
+    game_state->pickaxe.hit_speed = 5.0f;
     
     // rocks
     {
@@ -820,6 +1053,10 @@ game_update(f64 delta_time_f64, void *memory, size_t size) {
       entity->pos.y += sin(game_state->time * 50.0f) * 0.9f;
       entity->pos.x += sin(game_state->time * 10.0f) * 0.1f;
     }
+    
+    if (entity->animate_landing) {
+      animate_landing(game_state->font, entity, delta_time);
+    }
   }
   
 #define CB_PARTICLE
@@ -959,8 +1196,8 @@ game_update(f64 delta_time_f64, void *memory, size_t size) {
     
     game_state->grid.pressed = false;
     
-    for (i32 y = -10; y < 10; y++) {
-      for (i32 x = -10; x < 10; x++) {
+    for (u32 y = 0; y < 10; y++) {
+      for (u32 x = 0; x < 10; x++) {
         vec2 pos = v2(rect_size.x/2 * x, rect_size.y/2 * y);
         
         vec2 ndc = ndc_coords(pos);
@@ -970,14 +1207,28 @@ game_update(f64 delta_time_f64, void *memory, size_t size) {
         
         bool overlaps = rect_overlaps(entity_rect_ndc, mouse_world);
         
+        bool cell_is_free = grid_cell_empty(game_state, x, y);
+        
+        vec4 rect_color = color;
+        
+        vec2 rect_start_pos = {
+          pos.x - rect_size.x/4,
+          pos.y - rect_size.y/4
+        };
+        
         if (overlaps) {
+          
+          //info(game_state->font, v2(100, 100), "%i, %i", x, y);
           
           game_state->grid.pos = pos;
           game_state->grid.overlaps = true;
           
-          vec4 rect_color = color;
+          if (!cell_is_free) {
+            rect_color.xyz = red_v4.xyz;
+            rect_color.a = 0.6;
+          }
           
-          if (is_key_just_pressed(MOUSE_BUTTON_LEFT)) {
+          if (cell_is_free && is_key_just_pressed(MOUSE_BUTTON_LEFT)) {
             rect_color = green_v4;
             game_state->grid.pressed = true;
             game_state->grid.show = false;
@@ -986,17 +1237,23 @@ game_update(f64 delta_time_f64, void *memory, size_t size) {
             Entity *building = entity_create(game_state);
             setup_entity(building, game_state->ui_building.selected_type);
             
-            building->pos = pos;
+            game_state->pickaxe.hit_speed += 1.0f;
+            
+            grid_add_to(game_state, x, y, building);
+            
+            start_landing_animation(building, pos);
+            
+            building_try_combining(game_state);
           }
-          
-          vec2 rect_start_pos = {
-            pos.x - rect_size.x/4,
-            pos.y - rect_size.y/4
-          };
           
           render_rect(rect_start_pos, adjusted_size, rect_color, camera);
         }
         else {
+          
+          if (!cell_is_free) {
+            render_rect(rect_start_pos, adjusted_size, red_v4, camera);
+          }
+          
           render_rect_outline_no_ndc(entity_rect_ndc, color, camera);
         }
         
@@ -1024,7 +1281,9 @@ game_update(f64 delta_time_f64, void *memory, size_t size) {
       
       f32 a = game_state->pickaxe.step;
       
-      a += delta_time * 10.0f;
+      f32 hit_speed = game_state->pickaxe.hit_speed;
+      
+      a += delta_time * hit_speed;
       
       f32 max_a = 6.0f;
       f32 progress = a / max_a;
@@ -1052,12 +1311,12 @@ game_update(f64 delta_time_f64, void *memory, size_t size) {
       f32 angle = lerpf(start_angle, max_angle, t);
       pickaxe->angle = angle;
       
-      if (!game_state->pickaxe.first_hit && t >= .7) {
+      if (!game_state->pickaxe.first_hit && t >= .8) {
         game_state->pickaxe.first_hit = true;
         play_sound(Sound_effect_pickaxe_hit);
       }
       
-      game_state->pickaxe.hit = (t >= .9) ? false : true;
+      game_state->pickaxe.hit = (t >= .8f) ? true : false;
       
       //printf("%f\n", t);
       

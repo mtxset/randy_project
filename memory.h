@@ -65,4 +65,13 @@ mem_push_size_(Memory_arena* arena, size_t size) {
 
 #define mem_zero_struct(instance) mem_zero_size_(sizeof(instance), &(instance))
 
+inline
+void
+sub_arena(Memory_arena* result, Memory_arena *arena, size_t size) {
+  result->size = size;
+  result->base = (u8*)mem_push_size(arena, size);
+  result->used = 0;
+  result->temp_count = 0;
+}
+
 #endif //MEMORY_H

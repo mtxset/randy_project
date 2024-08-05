@@ -377,6 +377,13 @@ void default_logger(Log_Level level, string s) {
 }
 
 ogb_instance void oogabooga_init(u64 program_memory_size);
+ogb_instance void init_temp();
+
+#if !OOGABOOGA_LINK_EXTERNAL_INSTANCE
+void init_temp() {
+  temp_allocator = get_initialization_allocator();
+}
+#endif
 
 #if !OOGABOOGA_LINK_EXTERNAL_INSTANCE
 void oogabooga_init(u64 program_memory_size) {
